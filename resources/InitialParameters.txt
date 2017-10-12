@@ -1,0 +1,8 @@
+#Redes conocidas
+82.21.0.0
+121.11.3.0
+192.168.0.0
+#Vecinos BGP
+192.168.1.3:3333
+#Escuchar vecinos
+5555
