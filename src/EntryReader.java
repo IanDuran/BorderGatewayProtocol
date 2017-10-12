@@ -1,15 +1,16 @@
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
-import java.util.LinkedList;
-import java.util.List;
+import java.util.*;
 
 public class EntryReader {
     private List<String> knownNetworks;
+    private Map<String, Integer> neighbors;
     private int listeningSocket;
 
     public EntryReader(String path){
         this.knownNetworks = new LinkedList<>();
+        this.neighbors = new Hashtable<>();
         this.listeningSocket = 0;
         try{
             File entryFile = new File(path);
@@ -22,8 +23,10 @@ public class EntryReader {
                         this.knownNetworks.add(currentLine);
                 }
                 if(currentLine.contains("#V")){
+                    String[] information = null;
                     while(!(currentLine = reader.readLine()).contains("#")) {
-                        //Vecino y puerto
+                        information = currentLine.split(":");
+                        neighbors.put(information[0], Integer.parseInt(information[1]));
                     }
                 }
                 if(currentLine.contains("#E")){
@@ -44,11 +47,27 @@ public class EntryReader {
         return listeningSocket;
     }
 
+    public Map<String, Integer> getNeighbors() {
+        return neighbors;
+    }
+
     public static void main(String... args) {
         EntryReader entryReader = new EntryReader("resources/InitialParameters.txt");
-        List neighbors = entryReader.getKnownNetworks();
-        for (int i = 0; i < neighbors.size(); i++) {
-            System.out.println(neighbors.get(i));
+        List knownNetworks = entryReader.getKnownNetworks();
+
+        System.out.println("Known networks:");
+        for (int i = 0; i < knownNetworks.size(); i++) {
+            System.out.println(knownNetworks.get(i));
+        }
+        System.out.println();
+        System.out.println("Neighbors:");
+        Set<Map.Entry<String, Integer>> neighbors = entryReader.getNeighbors().entrySet();
+        Iterator<Map.Entry<String, Integer>> iterator = neighbors.iterator();
+        while(iterator.hasNext()){
+            Map.Entry currEntry = iterator.next();
+            System.out.println("Neighbor: " + currEntry.getKey());
+            System.out.println("Port: " + currEntry.getValue());
+            System.out.println();
         }
         System.out.println("Listening socket: " + entryReader.getListeningSocket());
     }
