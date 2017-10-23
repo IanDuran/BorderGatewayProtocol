@@ -4,6 +4,7 @@ import java.io.FileReader;
 import java.util.*;
 
 public class EntryReader {
+    private String id;
     private List<String> knownNetworks;
     private Map<String, Integer> neighbors;
     private int listeningSocket;
@@ -17,6 +18,8 @@ public class EntryReader {
             FileReader fileReader = new FileReader(entryFile);
             BufferedReader reader = new BufferedReader(fileReader);
             String currentLine;
+            if((currentLine = reader.readLine()) != null)
+                id = currentLine;
             while((currentLine = reader.readLine()) != null){
                 if(currentLine.contains("#R")){
                     while(!(currentLine = reader.readLine()).contains("#"))
@@ -39,6 +42,10 @@ public class EntryReader {
         }
     }
 
+    public String getId() {
+        return id;
+    }
+
     public List<String> getKnownNetworks() {
         return knownNetworks;
     }
@@ -55,6 +62,8 @@ public class EntryReader {
         EntryReader entryReader = new EntryReader("resources/InitialParameters.txt");
         List knownNetworks = entryReader.getKnownNetworks();
 
+        System.out.println("AS id:");
+        System.out.println(entryReader.getId());
         System.out.println("Known networks:");
         for (int i = 0; i < knownNetworks.size(); i++) {
             System.out.println(knownNetworks.get(i));
@@ -70,5 +79,8 @@ public class EntryReader {
             System.out.println();
         }
         System.out.println("Listening socket: " + entryReader.getListeningSocket());
+
+        Manager manager = new Manager(entryReader.getId(), entryReader.getKnownNetworks(), entryReader.getNeighbors(), entryReader.getListeningSocket());
+        manager.run();
     }
 }
