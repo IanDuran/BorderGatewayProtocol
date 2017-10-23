@@ -25,7 +25,7 @@ public class Client implements Runnable{
             x--;
             String key = entry.getKey();
             List<String> routeList = entry.getValue();
-            int shortestRoute = 1000;
+            int shortestRoute = Integer.MAX_VALUE;
             int bestRoute = 0;
             for(int i = 0; i < routeList.size(); i++){
                 int count = routeList.get(i).length() - routeList.get(i).replace("-", "").length();
@@ -51,6 +51,7 @@ public class Client implements Runnable{
             output = new PrintStream(client.getOutputStream());
             while(true) {
                 output.print(getUpdateMessage());
+                output.flush();
                 TimeUnit.SECONDS.sleep(30);
             }
         } catch (Exception e){
