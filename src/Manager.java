@@ -40,7 +40,7 @@ public class Manager {
         return routes;
     }
 
-    public void addRoute(String subnet, String route){
+    public synchronized void addRoute(String subnet, String route){
         boolean notInList = true;
         List<String> subnetRoutes = routes.get(subnet);
         if(subnetRoutes != null) {

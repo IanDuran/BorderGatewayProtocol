@@ -10,6 +10,7 @@ public class Client implements Runnable{
     private String neighbor;
     private Integer port;
     private Manager manager;
+    private String neighborId;
 
     public Client(String neighbor, Integer port, Manager manager){
         this.neighbor = neighbor;
@@ -34,9 +35,11 @@ public class Client implements Runnable{
                     bestRoute = i;
                 }
             }
-            message += key + ":" + routeList.get(bestRoute) + "";
-            if(x != 0)
-                message += ",";
+            if(!routeList.get(bestRoute).contains(neighborId)) {
+                message += key + ":" + routeList.get(bestRoute) + "";
+                if (x != 0)
+                    message += ",";
+            }
         }
         return message;
     }
@@ -47,15 +50,29 @@ public class Client implements Runnable{
         DataInputStream input = null;
         PrintStream output = null;
         try {
-            client = new Socket(neighbor, port);
-            output = new PrintStream(client.getOutputStream());
-            while(true) {
-                output.print(getUpdateMessage());
-                TimeUnit.SECONDS.sleep(30);
+            while (true) {
+                try {
+                    client = new Socket(neighbor, port);
+                    output = new PrintStream(client.getOutputStream());
+                    input = new DataInputStream(client.getInputStream());
+                    String message;
+                    while (true) {
+                        output.print(getUpdateMessage());
+                        message = input.readUTF();
+                        neighborId = message.substring(0,message.indexOf("*"));
+                        message = message.substring(message.indexOf("*"));
+                        String[] routes = message.split(",");
+                        for(String route : routes){
+                            int position = route.indexOf(":");
+                            manager.addRoute(route.substring(0,position), route.substring(position + 1));
+                        }
+                        TimeUnit.SECONDS.sleep(30);
+                    }
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
             }
-        } catch (Exception e){
-            e.printStackTrace();
-        }
+        }catch (Exception e){e.printStackTrace();}
         finally {
             try {
                 output.close();
