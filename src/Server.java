@@ -1,7 +1,9 @@
 import java.io.DataInputStream;
+import java.io.IOException;
 import java.io.PrintStream;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.time.temporal.ChronoUnit;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
@@ -38,8 +40,28 @@ public class Server implements Runnable {
         return fromAS;
     }
 
+    private void eraseRoutes(String AS){
+        if(!AS.equals("")) {
+            Iterator<Map.Entry<String, List<String>>> iterator = routes.entrySet().iterator();
+            while (iterator.hasNext()) {
+                Map.Entry<String, List<String>> currEntry = iterator.next();
+                List<String> currentEntryRoutes = currEntry.getValue();
+                for (int i = 0; i < currentEntryRoutes.size(); i++) {
+                    if (currentEntryRoutes.get(i).contains(AS)) {
+                        currentEntryRoutes.remove(i);
+                        i--;
+                    }
+                }
+                if(currentEntryRoutes.size() == 0){
+                    routes.remove(currEntry.getKey(), currEntry.getValue());
+                }
+            }
+        }
+    }
+
     @Override
     public void run() {
+        String fromAS = "";
         while(true) {
             try (Socket clientSocket = this.serverSocket.accept();
                  DataInputStream dataInputStream = new DataInputStream(clientSocket.getInputStream());
@@ -47,7 +69,7 @@ public class Server implements Runnable {
             ) {
                 while(true) {
                     //Receive and update
-                    String fromAS = this.update(dataInputStream.readUTF());
+                    fromAS = this.update(dataInputStream.readUTF());
 
                     //Response
                     Iterator<Map.Entry<String, List<String>>> iterator = routes.entrySet().iterator();
@@ -66,7 +88,6 @@ public class Server implements Runnable {
                                 currentRoute = routeList.get(i);
                             }
                         }
-
                         message += currEntry.getKey() + ":" + currentRoute + ",";
                     }
 
@@ -75,8 +96,11 @@ public class Server implements Runnable {
                     printStream.flush();
                     TimeUnit.SECONDS.sleep(30);
                 }
-            } catch (Exception e) {
+            } catch (IOException e) {
                 //Llega aqui cuando la conexion muere, hacer algo
+                this.eraseRoutes(fromAS);
+                e.printStackTrace();
+            } catch(Exception e){
                 e.printStackTrace();
             }
         }
