@@ -1,4 +1,6 @@
+import java.io.BufferedReader;
 import java.io.DataInputStream;
+import java.io.InputStreamReader;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.net.ServerSocket;
@@ -15,13 +17,11 @@ public class Server implements Runnable {
     private int listeningSocket;
     private ServerSocket serverSocket;
     private Map<String, List<String>> routes;
-    private Semaphore mapSemaphore;
     private Manager manager;
 
-    public Server(int listeningSocket, Map<String, List<String>> routes, Semaphore mapSemaphore, Manager manager) {
+    public Server(int listeningSocket, Map<String, List<String>> routes, Manager manager) {
         this.listeningSocket = listeningSocket;
         this.routes = routes;
-        this.mapSemaphore = mapSemaphore;
         this.manager = manager;
         try {
             this.serverSocket = new ServerSocket(listeningSocket);
@@ -31,13 +31,14 @@ public class Server implements Runnable {
     }
 
     private String update(String newRoute){
-        String[] info = newRoute.split(":");
-        String fromAS = info[0].split("\\*")[0];
-        String ip = info[0].split("\\*")[1];//ip y AS que lo mando/
-        String route = manager.getId() + "-" + info[1];
-
-        this.manager.addRoute(ip, route);
-        return fromAS;
+        String as = newRoute.substring(0,newRoute.indexOf("*"));
+        String message = newRoute.substring(newRoute.indexOf("*") + 1);
+        String[] routes = message.split(",");
+        for(String route : routes){
+            int position = route.indexOf(":");
+            manager.addRoute(route.substring(0,position), manager.getId() + "-" + route.substring(position + 1));
+        }
+        return as;
     }
 
     private void eraseRoutes(String AS){
@@ -64,12 +65,13 @@ public class Server implements Runnable {
         String fromAS = "";
         while(true) {
             try (Socket clientSocket = this.serverSocket.accept();
-                 DataInputStream dataInputStream = new DataInputStream(clientSocket.getInputStream());
+                 BufferedReader dataInputStream = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
                  PrintStream printStream = new PrintStream(clientSocket.getOutputStream())
             ) {
                 while(true) {
                     //Receive and update
-                    fromAS = this.update(dataInputStream.readUTF());
+                    String input = dataInputStream.readLine();
+                    fromAS = this.update(input);
 
                     //Response
                     Iterator<Map.Entry<String, List<String>>> iterator = routes.entrySet().iterator();
@@ -88,11 +90,12 @@ public class Server implements Runnable {
                                 currentRoute = routeList.get(i);
                             }
                         }
-                        message += currEntry.getKey() + ":" + currentRoute + ",";
+                        if(!currentRoute.equals(""))
+                            message += currEntry.getKey() + ":" + currentRoute + ",";
                     }
 
                     message = message.substring(0, message.length() - 1);
-                    printStream.print(message);
+                    printStream.println(message);
                     printStream.flush();
                     TimeUnit.SECONDS.sleep(30);
                 }

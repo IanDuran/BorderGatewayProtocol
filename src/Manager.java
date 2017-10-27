@@ -104,6 +104,8 @@ public class Manager {
                     Thread t = new Thread( new Client(entry.getKey(), entry.getValue(), this));
                     t.start();
                 }
+                Thread t = new Thread(new Server(listeningSocket, routes, this));
+                t.start();
             }
             else if(input.equals("stop")){
 
