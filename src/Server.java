@@ -3,13 +3,11 @@ import java.io.DataInputStream;
 import java.io.InputStreamReader;
 import java.io.IOException;
 import java.io.PrintStream;
+import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.time.temporal.ChronoUnit;
-import java.util.Iterator;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 
@@ -23,11 +21,6 @@ public class Server implements Runnable {
         this.listeningSocket = listeningSocket;
         this.routes = routes;
         this.manager = manager;
-        try {
-            this.serverSocket = new ServerSocket(listeningSocket);
-        }catch(Exception e){
-            e.printStackTrace();
-        }
     }
 
     private String update(String newRoute){
@@ -42,69 +35,94 @@ public class Server implements Runnable {
     }
 
     private void eraseRoutes(String AS){
-        if(!AS.equals("")) {
-            Iterator<Map.Entry<String, List<String>>> iterator = routes.entrySet().iterator();
-            while (iterator.hasNext()) {
-                Map.Entry<String, List<String>> currEntry = iterator.next();
-                List<String> currentEntryRoutes = currEntry.getValue();
-                for (int i = 0; i < currentEntryRoutes.size(); i++) {
-                    if (currentEntryRoutes.get(i).contains(AS)) {
-                        currentEntryRoutes.remove(i);
-                        i--;
+        try {
+            if (!AS.equals("")) {
+                Iterator<Map.Entry<String, List<String>>> iterator = routes.entrySet().iterator();
+                while (iterator.hasNext()) {
+                    Map.Entry<String, List<String>> currEntry = iterator.next();
+                    List<String> currentEntryRoutes = currEntry.getValue();
+                    for (int i = 0; i < currentEntryRoutes.size(); i++) {
+                        if (currentEntryRoutes.get(i).contains(AS)) {
+                            currentEntryRoutes.remove(i);
+                            i--;
+                        }
+                    }
+                    if (currentEntryRoutes.size() == 0) {
+                        routes.remove(currEntry.getKey(), currEntry.getValue());
                     }
                 }
-                if(currentEntryRoutes.size() == 0){
-                    routes.remove(currEntry.getKey(), currEntry.getValue());
+            }
+        } catch (ConcurrentModificationException e){}
+    }
+
+    public String getUpdateMessage(String AS){
+        Iterator<Map.Entry<String, List<String>>> iterator = manager.getRoutes().entrySet().iterator();
+        String message = manager.getId() + "*";
+        while (iterator.hasNext()) {
+            Map.Entry<String, List<String>> currEntry = iterator.next();
+            List<String> routeList = currEntry.getValue();
+
+            String currentRoute = "";
+            if (!routeList.get(0).contains(AS))
+                currentRoute = routeList.get(0);
+
+            for (int i = 1; i < routeList.size(); i++) {
+                if ((currentRoute.equals("") && !routeList.get(i).contains(AS)) ||
+                        (!routeList.get(i).contains(AS) && routeList.get(i).split("-").length < currentRoute.split("-").length)) {
+                    currentRoute = routeList.get(i);
                 }
             }
+            if(!currentRoute.equals(""))
+                message += currEntry.getKey() + ":" + currentRoute + ",";
         }
+
+        message = message.substring(0, message.length() - 1);
+        return message;
     }
 
     @Override
     public void run() {
         String fromAS = "";
+        try {
+            this.serverSocket = new ServerSocket();
+            serverSocket.setReuseAddress(true);
+            serverSocket.bind(new InetSocketAddress(listeningSocket));
+        }catch(Exception e){
+        }
+        Socket clientSocket = null;
+        BufferedReader dataInputStream = null;
+        PrintStream printStream = null;
         while(true) {
-            try (Socket clientSocket = this.serverSocket.accept();
-                 BufferedReader dataInputStream = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
-                 PrintStream printStream = new PrintStream(clientSocket.getOutputStream())
-            ) {
-                while(true) {
+            try {
+                String input = "";
+                clientSocket = this.serverSocket.accept();
+                dataInputStream = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
+                printStream = new PrintStream(clientSocket.getOutputStream());
+                while(input != null) {
                     //Receive and update
-                    String input = dataInputStream.readLine();
+                    input = dataInputStream.readLine();
+                    //System.out.println(input);
+                    if(input == null)
+                        break;
+
                     fromAS = this.update(input);
+                    //manager.printRoutes();
 
                     //Response
-                    Iterator<Map.Entry<String, List<String>>> iterator = routes.entrySet().iterator();
-                    String message = manager.getId() + "*";
-                    while (iterator.hasNext()) {
-                        Map.Entry<String, List<String>> currEntry = iterator.next();
-                        List<String> routeList = currEntry.getValue();
-
-                        String currentRoute = "";
-                        if (!routeList.get(0).contains(fromAS))
-                            currentRoute = routeList.get(0);
-
-                        for (int i = 1; i < routeList.size(); i++) {
-                            if ((currentRoute.equals("") && !routeList.get(i).contains(fromAS)) ||
-                                    (!routeList.get(i).contains(fromAS) && routeList.get(i).split("-").length < currentRoute.split("-").length)) {
-                                currentRoute = routeList.get(i);
-                            }
-                        }
-                        if(!currentRoute.equals(""))
-                            message += currEntry.getKey() + ":" + currentRoute + ",";
-                    }
-
-                    message = message.substring(0, message.length() - 1);
-                    printStream.println(message);
+                    printStream.println(getUpdateMessage(fromAS));
                     printStream.flush();
+
                     TimeUnit.SECONDS.sleep(30);
                 }
+                eraseRoutes(fromAS);
             } catch (IOException e) {
-                //Llega aqui cuando la conexion muere, hacer algo
-                this.eraseRoutes(fromAS);
-                e.printStackTrace();
-            } catch(Exception e){
-                e.printStackTrace();
+            } catch(InterruptedException e){
+                try {
+                    clientSocket.close();
+                    dataInputStream.close();
+                    printStream.close();
+                }catch (Exception ex){e.printStackTrace();}
+                break;
             }
         }
     }

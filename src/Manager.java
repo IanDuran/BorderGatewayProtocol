@@ -11,6 +11,7 @@ public class Manager {
     private Map<String, Integer> neighbors;
     private int listeningSocket;
     private Map<String, List<String>> routes;
+    private List<Thread> threads;
 
     public Manager(String id, List<String> knownNetworks, Map<String,Integer> neighbors, int listeningSocket){
         this.id = id;
@@ -18,6 +19,7 @@ public class Manager {
         this.neighbors = neighbors;
         this.listeningSocket = listeningSocket;
         routes = new Hashtable<>();
+        threads = new LinkedList<>();
     }
 
     public String getId() {
@@ -41,6 +43,7 @@ public class Manager {
     }
 
     public synchronized void addRoute(String subnet, String route){
+        //System.out.println(route);
         boolean notInList = true;
         List<String> subnetRoutes = routes.get(subnet);
         if(subnetRoutes != null) {
@@ -51,7 +54,7 @@ public class Manager {
                 }
             }
             if (notInList) {
-                subnetRoutes.add(id + "-" + route);
+                subnetRoutes.add(route);
                 routes.put(subnet, subnetRoutes);
             }
         }
@@ -103,20 +106,36 @@ public class Manager {
                 for(Map.Entry<String, Integer> entry : neighbors.entrySet()){
                     Thread t = new Thread( new Client(entry.getKey(), entry.getValue(), this));
                     t.start();
+                    threads.add(t);
                 }
                 Thread t = new Thread(new Server(listeningSocket, routes, this));
                 t.start();
+                threads.add(t);
             }
             else if(input.equals("stop")){
-
+                for(Thread t : threads){
+                    if(t.isAlive()){
+                        t.interrupt();
+                    }
+                }
+                routes.clear();
             }
             else if(input.contains("add")){
-
+                try {
+                    System.out.print("Enter the new network: ");
+                    String subnet = reader.readLine();
+                    addRoute(subnet, id);
+                } catch (Exception e){e.printStackTrace();}
             }
             else if(input.equals("show routes")){
                 printRoutes();
             }
             else if(input.equals("exit")){
+                for(Thread t : threads){
+                    if(t.isAlive()){
+                        t.interrupt();
+                    }
+                }
                 break;
             }
             else{
