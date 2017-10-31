@@ -1,6 +1,7 @@
 import java.io.*;
 import java.net.Socket;
 import java.util.Iterator;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
@@ -11,12 +12,13 @@ public class Client implements Runnable{
     private Integer port;
     private Manager manager;
     private String neighborId;
+    private Map<String, String> neighborRoutes;
 
     public Client(String neighbor, Integer port, Manager manager){
         this.neighbor = neighbor;
         this.port = port;
         this.manager = manager;
-        neighborId = "";
+        neighborId = "--------";
     }
 
     public String getUpdateMessage(){
@@ -28,13 +30,15 @@ public class Client implements Runnable{
                 List<String> routeList = currEntry.getValue();
 
                 String currentRoute = "";
-                if (!routeList.get(0).contains(neighborId))
-                    currentRoute = routeList.get(0);
+                if(!routeList.isEmpty()) {
+                    if (!routeList.get(0).contains(neighborId))
+                        currentRoute = routeList.get(0);
 
-                for (int i = 1; i < routeList.size(); i++) {
-                    if ((currentRoute.equals("") && !routeList.get(i).contains(neighborId)) ||
-                            (!routeList.get(i).contains(neighborId) && routeList.get(i).split("-").length < currentRoute.split("-").length)) {
-                        currentRoute = routeList.get(i);
+                    for (int i = 1; i < routeList.size(); i++) {
+                        if ((currentRoute.equals("") && !routeList.get(i).contains(neighborId)) ||
+                                (!routeList.get(i).contains(neighborId) && routeList.get(i).split("-").length < currentRoute.split("-").length)) {
+                            currentRoute = routeList.get(i);
+                        }
                     }
                 }
                 if (!currentRoute.equals(""))
@@ -59,27 +63,31 @@ public class Client implements Runnable{
     }
 
     private String update(String newRoute){
+        for(Map.Entry<String, List<String>> entry : manager.getRoutes().entrySet()){
+            String key = entry.getKey();
+            for(String route : entry.getValue()){
+                if(route.contains(manager.getId() + "-" + neighborId)){
+                    manager.getRoutes().get(key).remove(route);
+                }
+            }
+        }
         String as = newRoute.substring(0,newRoute.indexOf("*"));
         String message = newRoute.substring(newRoute.indexOf("*") + 1);
         String[] routes = message.split(",");
         for(String route : routes){
             int position = route.indexOf(":");
-            manager.addRoute(route.substring(0,position), manager.getId() + "-" + route.substring(position + 1));
-        }
+            manager.addRoute(route.substring(0,position), manager.getId() + "-" + route.substring(position + 1));        }
         return as;
     }
 
     private void eraseRoutes(String AS){
         if(!AS.equals("")) {
-            for(Map.Entry<String, List<String>> entry : manager.getRoutes().entrySet()){
+            for(Map.Entry<String, List<String>> entry : manager.getRoutes().entrySet()) {
                 String key = entry.getKey();
-                for(String route : entry.getValue()){
-                    if(route.contains(AS)){
-                        manager.getRoutes().remove(key, route);
+                for(String value : entry.getValue()) {
+                    if(value.contains(AS)){
+                        manager.getRoutes().get(key).remove(value);
                     }
-                }
-                if(entry.getValue().isEmpty()){
-                    manager.getRoutes().remove(key);
                 }
             }
         }
@@ -95,6 +103,7 @@ public class Client implements Runnable{
                 client = new Socket(neighbor, port);
                 input = new BufferedReader(new InputStreamReader(client.getInputStream()));
                 output = new PrintStream(client.getOutputStream());
+                manager.removeFromBlacklist(neighborId);
                 String message = "";
                 while(message != null) {
                     output.println(getUpdateMessage());
@@ -109,7 +118,6 @@ public class Client implements Runnable{
 
                     TimeUnit.SECONDS.sleep(30);
                 }
-                eraseRoutes(neighborId);
             } catch(InterruptedException e){
                 try {
                     client.close();
@@ -118,7 +126,10 @@ public class Client implements Runnable{
                     break;
                 } catch (Exception ex){ex.printStackTrace();}
             }
-            catch(IOException ex){}
+            catch(IOException ex){
+                manager.addToBlacklist(neighborId);
+                eraseRoutes(neighborId);
+            }
         }
     }
 }

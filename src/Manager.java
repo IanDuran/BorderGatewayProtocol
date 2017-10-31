@@ -12,6 +12,7 @@ public class Manager {
     private int listeningSocket;
     private Map<String, List<String>> routes;
     private List<Thread> threads;
+    private List<String> blacklist;
 
     public Manager(String id, List<String> knownNetworks, Map<String,Integer> neighbors, int listeningSocket){
         this.id = id;
@@ -20,6 +21,7 @@ public class Manager {
         this.listeningSocket = listeningSocket;
         routes = new Hashtable<>();
         threads = new LinkedList<>();
+        blacklist = new LinkedList<>();
     }
 
     public String getId() {
@@ -42,7 +44,27 @@ public class Manager {
         return routes;
     }
 
+    public void addToBlacklist(String as){
+        if(!blacklist.contains(as))
+            blacklist.add(as);
+    }
+
+    public synchronized void removeFromBlacklist(String As){
+        Iterator<String> iter = blacklist.iterator();
+
+        while (iter.hasNext()) {
+            String str = iter.next();
+
+            if (str.equals(As))
+                iter.remove();
+        }
+    }
+
     public synchronized void addRoute(String subnet, String route){
+        for(String as : blacklist){
+            if(route.contains(as))
+                return;
+        }
         //System.out.println(route);
         boolean notInList = true;
         List<String> subnetRoutes = routes.get(subnet);

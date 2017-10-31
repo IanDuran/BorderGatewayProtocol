@@ -1,7 +1,7 @@
-AS5
+AS3
 #Redes conocidas
-50.0.0.0
+30.0.0.0
 #Vecinos BGP
-127.0.0.1:11
+127.0.0.1:44
 #Escuchar vecinos
-55
+33
