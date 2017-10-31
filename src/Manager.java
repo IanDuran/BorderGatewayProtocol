@@ -9,16 +9,16 @@ public class Manager {
     private String id;
     private List<String> knownNetworks;
     private Map<String, Integer> neighbors;
-    private int listeningSocket;
+    private List<Integer> listeningSockets;
     private Map<String, List<String>> routes;
     private List<Thread> threads;
     private List<String> blacklist;
 
-    public Manager(String id, List<String> knownNetworks, Map<String,Integer> neighbors, int listeningSocket){
+    public Manager(String id, List<String> knownNetworks, Map<String,Integer> neighbors, List<Integer> listeningSockets){
         this.id = id;
         this.knownNetworks = knownNetworks;
         this.neighbors = neighbors;
-        this.listeningSocket = listeningSocket;
+        this.listeningSockets = listeningSockets;
         routes = new Hashtable<>();
         threads = new LinkedList<>();
         blacklist = new LinkedList<>();
@@ -36,8 +36,8 @@ public class Manager {
         return neighbors;
     }
 
-    public int getListeningSocket() {
-        return listeningSocket;
+    public List<Integer> getListeningSocket() {
+        return listeningSockets;
     }
 
     public Map<String, List<String>> getRoutes() {
@@ -130,9 +130,11 @@ public class Manager {
                     t.start();
                     threads.add(t);
                 }
-                Thread t = new Thread(new Server(listeningSocket, routes, this));
-                t.start();
-                threads.add(t);
+                for(Integer i : listeningSockets) {
+                    Thread t = new Thread(new Server(i, routes, this));
+                    t.start();
+                    threads.add(t);
+                }
             }
             else if(input.equals("stop")){
                 for(Thread t : threads){

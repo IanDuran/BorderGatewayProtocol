@@ -3,6 +3,7 @@ import java.io.DataInputStream;
 import java.io.InputStreamReader;
 import java.io.IOException;
 import java.io.PrintStream;
+import java.net.BindException;
 import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
@@ -13,7 +14,6 @@ import java.util.concurrent.TimeUnit;
 
 public class Server implements Runnable {
     private int listeningSocket;
-    private ServerSocket serverSocket;
     private Map<String, List<String>> routes;
     private Manager manager;
 
@@ -85,31 +85,30 @@ public class Server implements Runnable {
     @Override
     public void run() {
         String fromAS = "-------";
-        try {
-            this.serverSocket = new ServerSocket();
-            serverSocket.setReuseAddress(true);
-            serverSocket.bind(new InetSocketAddress(listeningSocket));
-        }catch(Exception e){
-        }
+        ServerSocket serverSocket = null;
         Socket clientSocket = null;
         BufferedReader dataInputStream = null;
         PrintStream printStream = null;
         while(true) {
             try {
+                serverSocket = new ServerSocket();
+                try {
+                    serverSocket.bind(new InetSocketAddress(listeningSocket));
+                }catch (Exception e){}
+                try {
+                    clientSocket = serverSocket.accept();
+                }catch (Exception e){}
                 String input = "";
-                clientSocket = this.serverSocket.accept();
                 dataInputStream = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
                 printStream = new PrintStream(clientSocket.getOutputStream());
                 manager.removeFromBlacklist(fromAS);
                 while(input != null) {
                     //Receive and update
                     input = dataInputStream.readLine();
-                    //System.out.println(input);
                     if(input == null)
                         break;
 
                     fromAS = this.update(input, fromAS);
-                    //manager.printRoutes();
 
                     //Response
                     printStream.println(getUpdateMessage(fromAS));
@@ -119,9 +118,10 @@ public class Server implements Runnable {
                 }
                 manager.addToBlacklist(fromAS);
                 eraseRoutes(fromAS);
-            } catch (IOException e) {
+            } catch (IOException e) {e.printStackTrace();
             } catch(InterruptedException e){
                 try {
+                    serverSocket.close();
                     clientSocket.close();
                     dataInputStream.close();
                     printStream.close();

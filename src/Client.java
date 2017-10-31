@@ -110,11 +110,8 @@ public class Client implements Runnable{
                     output.flush();
 
                     message = input.readLine();
-                    //System.out.println(message);
                     if(message != null)
                         neighborId = update(message);
-
-                    //manager.printRoutes();
 
                     TimeUnit.SECONDS.sleep(30);
                 }

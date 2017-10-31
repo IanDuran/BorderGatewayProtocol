@@ -7,12 +7,12 @@ public class EntryReader {
     private String id;
     private List<String> knownNetworks;
     private Map<String, Integer> neighbors;
-    private int listeningSocket;
+    private List<Integer> listeningSockets;
 
     public EntryReader(String path){
         this.knownNetworks = new LinkedList<>();
         this.neighbors = new Hashtable<>();
-        this.listeningSocket = 0;
+        this.listeningSockets = new LinkedList<>();
         try{
             File entryFile = new File(path);
             FileReader fileReader = new FileReader(entryFile);
@@ -33,7 +33,8 @@ public class EntryReader {
                     }
                 }
                 if(currentLine.contains("#E")){
-                    this.listeningSocket = Integer.parseInt(reader.readLine());
+                    while((currentLine = reader.readLine()) != null)
+                        this.listeningSockets.add(Integer.parseInt(currentLine));
                 }
             }
 
@@ -50,8 +51,8 @@ public class EntryReader {
         return knownNetworks;
     }
 
-    public int getListeningSocket() {
-        return listeningSocket;
+    public List<Integer> getListeningSocket() {
+        return listeningSockets;
     }
 
     public Map<String, Integer> getNeighbors() {
