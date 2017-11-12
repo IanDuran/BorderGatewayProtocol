@@ -6,7 +6,7 @@ import java.util.*;
 public class EntryReader {
     private String id;
     private List<String> knownNetworks;
-    private Map<String, Integer> neighbors;
+    private Map<String, List<Integer>> neighbors;
     private List<Integer> listeningSockets;
 
     public EntryReader(String path){
@@ -27,9 +27,18 @@ public class EntryReader {
                 }
                 if(currentLine.contains("#V")){
                     String[] information = null;
-                    while(!(currentLine = reader.readLine()).contains("#")) {
+                    while(!((currentLine = reader.readLine()).contains("#"))) {
                         information = currentLine.split(":");
-                        neighbors.put(information[0], Integer.parseInt(information[1]));
+                        List<Integer> list = neighbors.get(information[0]);
+                        if(list != null) {
+                            list.add(Integer.parseInt(information[1]));
+                            neighbors.put(information[0], list);
+                        }
+                        else {
+                            list = new LinkedList<>();
+                            list.add(Integer.parseInt(information[1]));
+                            neighbors.put(information[0] , list);
+                        }
                     }
                 }
                 if(currentLine.contains("#E")){
@@ -55,7 +64,7 @@ public class EntryReader {
         return listeningSockets;
     }
 
-    public Map<String, Integer> getNeighbors() {
+    public Map<String, List<Integer>> getNeighbors() {
         return neighbors;
     }
 
@@ -71,8 +80,8 @@ public class EntryReader {
         }
         System.out.println();
         System.out.println("Neighbors:");
-        Set<Map.Entry<String, Integer>> neighbors = entryReader.getNeighbors().entrySet();
-        Iterator<Map.Entry<String, Integer>> iterator = neighbors.iterator();
+        Set<Map.Entry<String, List<Integer>>> neighbors = entryReader.getNeighbors().entrySet();
+        Iterator<Map.Entry<String, List<Integer>>> iterator = neighbors.iterator();
         while(iterator.hasNext()){
             Map.Entry currEntry = iterator.next();
             System.out.println("Neighbor: " + currEntry.getKey());

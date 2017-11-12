@@ -13,6 +13,7 @@ public class Client implements Runnable{
     private Manager manager;
     private String neighborId;
     private Map<String, String> neighborRoutes;
+    private boolean flag = false;
 
     public Client(String neighbor, Integer port, Manager manager){
         this.neighbor = neighbor;
@@ -21,77 +22,7 @@ public class Client implements Runnable{
         neighborId = "--------";
     }
 
-    public String getUpdateMessage(){
-        String message = manager.getId() + "*";
-        if(!neighborId.equals("")) {
-            Iterator<Map.Entry<String, List<String>>> iterator = manager.getRoutes().entrySet().iterator();
-            while (iterator.hasNext()) {
-                Map.Entry<String, List<String>> currEntry = iterator.next();
-                List<String> routeList = currEntry.getValue();
-
-                String currentRoute = "";
-                if(!routeList.isEmpty()) {
-                    if (!routeList.get(0).contains(neighborId))
-                        currentRoute = routeList.get(0);
-
-                    for (int i = 1; i < routeList.size(); i++) {
-                        if ((currentRoute.equals("") && !routeList.get(i).contains(neighborId)) ||
-                                (!routeList.get(i).contains(neighborId) && routeList.get(i).split("-").length < currentRoute.split("-").length)) {
-                            currentRoute = routeList.get(i);
-                        }
-                    }
-                }
-                if (!currentRoute.equals(""))
-                    message += currEntry.getKey() + ":" + currentRoute + ",";
-            }
-        }
-        else{
-            List<String> networks = manager.getKnownNetworks();
-            for(String network : networks){
-                message += network + ":";
-                List<String> routeList = manager.getRoutes().get(network);
-                for(String route : routeList){
-                    if(!route.contains("-")) {
-                        message += route + ",";
-                        break;
-                    }
-                }
-            }
-        }
-        message = message.substring(0, message.length() - 1);
-        return message;
-    }
-
-    private String update(String newRoute){
-        for(Map.Entry<String, List<String>> entry : manager.getRoutes().entrySet()){
-            String key = entry.getKey();
-            for(String route : entry.getValue()){
-                if(route.contains(manager.getId() + "-" + neighborId)){
-                    manager.getRoutes().get(key).remove(route);
-                }
-            }
-        }
-        String as = newRoute.substring(0,newRoute.indexOf("*"));
-        String message = newRoute.substring(newRoute.indexOf("*") + 1);
-        String[] routes = message.split(",");
-        for(String route : routes){
-            int position = route.indexOf(":");
-            manager.addRoute(route.substring(0,position), manager.getId() + "-" + route.substring(position + 1));        }
-        return as;
-    }
-
-    private void eraseRoutes(String AS){
-        if(!AS.equals("")) {
-            for(Map.Entry<String, List<String>> entry : manager.getRoutes().entrySet()) {
-                String key = entry.getKey();
-                for(String value : entry.getValue()) {
-                    if(value.contains(AS)){
-                        manager.getRoutes().get(key).remove(value);
-                    }
-                }
-            }
-        }
-    }
+    public void setFlag(boolean value){flag = value;}
 
     @Override
     public void run() {
@@ -103,29 +34,42 @@ public class Client implements Runnable{
                 client = new Socket(neighbor, port);
                 input = new BufferedReader(new InputStreamReader(client.getInputStream()));
                 output = new PrintStream(client.getOutputStream());
+                String message;
+                output.println(manager.getUpdateMessage(neighborId));
+                output.flush();
+
+                message = input.readLine();
+                if(message != null)
+                    neighborId = manager.update(message, neighborId);
+
+                TimeUnit.SECONDS.sleep(5);
                 manager.removeFromBlacklist(neighborId);
-                String message = "";
                 while(message != null) {
-                    output.println(getUpdateMessage());
+                    output.println(manager.getUpdateMessage(neighborId));
                     output.flush();
 
                     message = input.readLine();
                     if(message != null)
-                        neighborId = update(message);
+                        neighborId = manager.update(message, neighborId);
 
-                    TimeUnit.SECONDS.sleep(30);
+                    TimeUnit.SECONDS.sleep(5);
+                    //System.out.println("Cliente1");
                 }
             } catch(InterruptedException e){
                 try {
+                    //System.out.println("Cliente2");
                     client.close();
                     input.close();
                     output.close();
-                    break;
                 } catch (Exception ex){ex.printStackTrace();}
+                return;
             }
             catch(IOException ex){
+                //System.out.println("Cliente3");
                 manager.addToBlacklist(neighborId);
-                eraseRoutes(neighborId);
+                manager.eraseRoutes(neighborId);
+                if(flag)
+                    return;
             }
         }
     }
