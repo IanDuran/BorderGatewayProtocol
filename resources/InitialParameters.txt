@@ -1,8 +1,7 @@
-AS7
+AS4
 #Redes conocidas
-70.0.0.0
+40.0.0.0
 #Vecinos BGP
-127.0.0.1:7
+127.0.0.1:4
 #Escuchar vecinos
-77
-777
+44

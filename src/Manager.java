@@ -240,7 +240,10 @@ public class Manager {
                 try {
                     System.out.print("Enter the new network: ");
                     String subnet = reader.readLine();
-                    addRoute(subnet, id);
+                    if(!knownNetworks.contains(subnet)) {
+                        knownNetworks.add(subnet);
+                        addRoute(subnet, id);
+                    }
                 } catch (Exception e){e.printStackTrace();}
             }
             else if(input.equals("show routes")){
