@@ -27,32 +27,32 @@ public class Client implements Runnable{
     @Override
     public void run() {
         Socket client = null;
-        BufferedReader input = null;
-        PrintStream output = null;
+        DataInputStream input = null;
+        DataOutputStream output = null;
         while(true) {
             try {
                 client = new Socket(neighbor, port);
-                input = new BufferedReader(new InputStreamReader(client.getInputStream()));
-                output = new PrintStream(client.getOutputStream());
+                input = new DataInputStream(client.getInputStream());
+                output = new DataOutputStream(client.getOutputStream());
                 String message;
-                output.println(manager.getUpdateMessage(neighborId));
+                output.writeUTF(manager.getUpdateMessage(neighborId));
                 output.flush();
 
-                message = input.readLine();
+                message = input.readUTF();
                 if(message != null)
                     neighborId = manager.update(message, neighborId);
 
-                TimeUnit.SECONDS.sleep(5);
+                TimeUnit.SECONDS.sleep(30);
                 manager.removeFromBlacklist(neighborId);
                 while(message != null) {
-                    output.println(manager.getUpdateMessage(neighborId));
+                    output.writeUTF(manager.getUpdateMessage(neighborId));
                     output.flush();
 
-                    message = input.readLine();
+                    message = input.readUTF();
                     if(message != null)
                         neighborId = manager.update(message, neighborId);
 
-                    TimeUnit.SECONDS.sleep(5);
+                    TimeUnit.SECONDS.sleep(30);
                     //System.out.println("Cliente1");
                 }
             } catch(InterruptedException e){

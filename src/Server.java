@@ -1,8 +1,4 @@
-import java.io.BufferedReader;
-import java.io.DataInputStream;
-import java.io.InputStreamReader;
-import java.io.IOException;
-import java.io.PrintStream;
+import java.io.*;
 import java.net.*;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
@@ -34,13 +30,13 @@ public class Server implements Runnable {
             serverSocket = new ServerSocket();
             serverSocket.bind(new InetSocketAddress(listeningSocket));
             Socket clientSocket = serverSocket.accept();
-            BufferedReader dataInputStream = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
-            PrintStream printStream = new PrintStream(clientSocket.getOutputStream());
+            DataInputStream dataInputStream = new DataInputStream(clientSocket.getInputStream());
+            DataOutputStream printStream = new DataOutputStream(clientSocket.getOutputStream());
             while (true) {
                 try {
                     String input;
                     //Receive and update
-                    input = dataInputStream.readLine();
+                    input = dataInputStream.readUTF();
                     if (input == null)
                         break;
 
@@ -51,14 +47,14 @@ public class Server implements Runnable {
                     fromAS = manager.update(input, fromAS);
 
                     //Response
-                    printStream.println(manager.getUpdateMessage(fromAS));
+                    printStream.writeUTF(manager.getUpdateMessage(fromAS));
                     printStream.flush();
 
-                    TimeUnit.SECONDS.sleep(5);
+                    TimeUnit.SECONDS.sleep(30);
                     manager.removeFromBlacklist(fromAS);
                     while (input != null) {
                         //Receive and update
-                        input = dataInputStream.readLine();
+                        input = dataInputStream.readUTF();
                         if (input == null)
                             break;
 
@@ -69,18 +65,18 @@ public class Server implements Runnable {
                         fromAS = manager.update(input, fromAS);
 
                         //Response
-                        printStream.println(manager.getUpdateMessage(fromAS));
+                        printStream.writeUTF(manager.getUpdateMessage(fromAS));
                         printStream.flush();
 
-                        TimeUnit.SECONDS.sleep(5);
+                        TimeUnit.SECONDS.sleep(30);
                         //System.out.println("Servidor1");
                     }
                     //System.out.println("Servidor2");
                     manager.addToBlacklist(fromAS);
                     manager.eraseRoutes(fromAS);
                     clientSocket = serverSocket.accept();
-                    dataInputStream = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
-                    printStream = new PrintStream(clientSocket.getOutputStream());
+                    dataInputStream = new DataInputStream(clientSocket.getInputStream());
+                    printStream = new DataOutputStream(clientSocket.getOutputStream());
                 } catch (InterruptedException e) {
                     try {
                         //System.out.println("Servidor3");
